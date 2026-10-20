@@ -1,0 +1,23 @@
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { config } from "./config.js";
+import { errorHandler } from "./lib/errors.js";
+import { authRouter } from "./routes/auth.js";
+import { submissionRouter } from "./routes/submissions.js";
+
+export const app = express();
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(cors({ origin: config.WEB_ORIGIN, credentials: true }));
+app.use(express.json({ limit: "20kb" }));
+app.use(cookieParser());
+app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: "draft-7", legacyHeaders: false }));
+app.use("/api/submissions", rateLimit({ windowMs: 10 * 60 * 1000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.use("/api/auth", authRouter);
+app.use("/api/submissions", submissionRouter);
+app.use((_req, res) => res.status(404).json({ message: "Route not found." }));
+app.use(errorHandler);
